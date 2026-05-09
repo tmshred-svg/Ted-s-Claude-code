@@ -9,11 +9,16 @@ from ..storage import upsert_observations
 
 
 URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/PCRATIOS.csv"
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 
 def fetch() -> List[Tuple[str, float]]:
     """CBOE total equity put/call ratio (daily)."""
-    r = requests.get(URL, timeout=30, headers={"User-Agent": "metrics-dashboard"})
+    r = requests.get(URL, timeout=30, headers={
+        "User-Agent": UA,
+        "Accept": "text/csv,*/*;q=0.8",
+        "Referer": "https://www.cboe.com/",
+    })
     r.raise_for_status()
     text = r.text
     out = []
