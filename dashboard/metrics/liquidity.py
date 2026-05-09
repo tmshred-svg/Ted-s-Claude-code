@@ -48,6 +48,7 @@ def collect() -> Dict:
             label="Fed balance sheet (WALCL)",
             value=v, unit="$bn",
             asof=fed.index[-1].date().isoformat(), source="FRED:WALCL",
+            series_id=f"FRED:{FED_BS}",
             extra={"4w_chg": c4, "13w_chg": c13, "13w_slope": slope},
         ))
     else:
@@ -60,6 +61,7 @@ def collect() -> Dict:
             label="Fed ON RRP balance",
             value=v, unit="$bn",
             asof=rrp.index[-1].date().isoformat(), source="FRED:RRPONTSYD",
+            series_id=f"FRED:{RRP}",
             extra={"5d_chg_$bn": None if d5 is None else d5},
         ))
     else:
@@ -101,6 +103,7 @@ def collect() -> Dict:
             label="ECB total assets",
             value=v, unit="$bn",
             asof=ecb.index[-1].date().isoformat(), source="FRED:ECBASSETSW",
+            series_id=f"FRED:{ECB_BS_FRED}",
             note="EUR not USD",
             extra={"4w_chg": c4},
         ))

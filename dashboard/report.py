@@ -14,7 +14,10 @@ def render(context: dict) -> str:
     )
     env.tests["number"] = lambda v: isinstance(v, (int, float))
     tpl = env.get_template("dashboard.html.j2")
-    return tpl.render(**context)
+    ctx = dict(context)
+    histories = ctx.get("histories") or {}
+    ctx["histories_json"] = json.dumps(histories, separators=(",", ":"), default=str)
+    return tpl.render(**ctx)
 
 
 def write(html: str) -> Path:

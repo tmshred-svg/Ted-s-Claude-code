@@ -19,7 +19,13 @@
   details{margin-top:6px}
   summary{cursor:pointer;color:#555;font-size:12px}
   pre{background:#fafafa;border:1px solid #eee;padding:8px;font-size:11px;overflow:auto}
+  .charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin:10px 0 18px}
+  .chart-card{border:1px solid #e2e2e2;border-radius:6px;padding:8px;background:#fff}
+  .chart-label{font-size:12px;color:#333;margin-bottom:2px;font-weight:600}
+  .chart-sub{font-size:11px;color:#666;margin-bottom:4px}
+  .chart-wrap{position:relative;height:160px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <h1>Daily Markets &amp; Macro Report</h1>
@@ -49,17 +55,39 @@
 </table>
 {%- endmacro %}
 
+{% macro chartgrid(cells, prefix) -%}
+{% set charted = [] %}
+{% for c in cells if c.series_id and c.series_id in histories and histories[c.series_id]|length > 1 %}
+  {% set _ = charted.append(c) %}
+{% endfor %}
+{% if charted %}
+<div class="charts">
+{% for c in charted %}
+  <div class="chart-card">
+    <div class="chart-label">{{ c.label }}</div>
+    <div class="chart-sub">{{ c.series_id }}{% if c.asof %} · last {{ c.asof }}{% endif %}</div>
+    <div class="chart-wrap"><canvas data-series="{{ c.series_id }}" data-label="{{ c.label }}" id="chart-{{ prefix }}-{{ loop.index }}"></canvas></div>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+{%- endmacro %}
+
 <h2>1. GDP — Global &amp; US, with revision tracking</h2>
 {{ celltable(gdp.cells) }}
+{{ chartgrid(gdp.cells, 'gdp') }}
 
 <h2>2. Credit spreads &amp; rate volatility</h2>
 {{ celltable(credit.cells) }}
+{{ chartgrid(credit.cells, 'credit') }}
 
 <h2>3. Inflation &amp; inflation expectations</h2>
 {{ celltable(inflation.cells) }}
+{{ chartgrid(inflation.cells, 'inflation') }}
 
 <h2>4. Global liquidity</h2>
 {{ celltable(liquidity.cells) }}
+{{ chartgrid(liquidity.cells, 'liquidity') }}
 
 <h2>5. Flow of funds — asset classes (price-action proxies)</h2>
 {{ celltable(flows.asset_cells) }}
@@ -69,6 +97,7 @@
 
 <h2>6. Sentiment &amp; positioning</h2>
 {{ celltable(sentiment.cells) }}
+{{ chartgrid(sentiment.cells, 'sentiment') }}
 
 <h2>7. Screens</h2>
 {% if screens.note %}
@@ -155,5 +184,50 @@
 <pre>{{ ingest_log }}</pre>
 </details>
 
+<script id="histories-data" type="application/json">{{ histories_json | safe }}</script>
+<script>
+(function () {
+  if (typeof Chart === "undefined") return;
+  var raw = document.getElementById("histories-data").textContent || "{}";
+  var HISTORIES;
+  try { HISTORIES = JSON.parse(raw); } catch (e) { HISTORIES = {}; }
+  document.querySelectorAll("canvas[data-series]").forEach(function (canvas) {
+    var sid = canvas.getAttribute("data-series");
+    var label = canvas.getAttribute("data-label") || sid;
+    var rows = HISTORIES[sid] || [];
+    if (rows.length < 2) return;
+    new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: rows.map(function (r) { return r[0]; }),
+        datasets: [{
+          label: label,
+          data: rows.map(function (r) { return r[1]; }),
+          borderColor: "#0a7d2c",
+          backgroundColor: "rgba(10,125,44,0.08)",
+          borderWidth: 1.2,
+          pointRadius: 0,
+          tension: 0.05,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { title: function (items) { return items[0].label; } } },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 6, autoSkip: true, font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { font: { size: 10 } }, grid: { color: "#eee" } },
+        },
+      },
+    });
+  });
+})();
+</script>
 </body>
 </html>

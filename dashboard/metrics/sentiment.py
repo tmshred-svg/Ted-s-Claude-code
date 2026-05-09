@@ -47,6 +47,7 @@ def collect() -> Dict:
             label="VIX",
             value=v, unit="idx",
             asof=vix.index[-1].date().isoformat(), source="FRED:VIXCLS",
+            series_id=f"FRED:{VIX_FRED}",
             extra={"5d_chg": d5},
         ))
     else:

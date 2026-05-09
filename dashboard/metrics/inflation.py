@@ -42,6 +42,7 @@ def collect() -> Dict:
         cells.append(Cell(
             label=label, value=yoy, unit="%",
             asof=s.index[-1].date().isoformat(), source=f"FRED:{sid}",
+            series_id=f"FRED:{sid}",
             extra={"mom": mom, "yoy_slope_6m": slope},
         ))
 
@@ -58,6 +59,7 @@ def collect() -> Dict:
         cells.append(Cell(
             label=label, value=v / 100.0, unit="%",
             asof=s.index[-1].date().isoformat(), source=f"FRED:{sid}",
+            series_id=f"FRED:{sid}",
             extra={"5d_chg_bp": None if d5 is None else d5 * 100,
                    "21d_chg_bp": None if d21 is None else d21 * 100,
                    "21d_slope": slope},

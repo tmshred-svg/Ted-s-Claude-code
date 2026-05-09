@@ -5,8 +5,19 @@ from pathlib import Path
 from .config import CFG
 from .metrics import gdp, credit, inflation, liquidity, flows, sentiment, screens
 from .sources import vectorvest, mastertrader, twentytwo_v
-from .storage import init_db, log_run
+from .storage import history_points, init_db, log_run
 from .report import render, write, fmt_log
+
+
+def _collect_histories(*sections) -> dict:
+    seen = {}
+    for sec in sections:
+        for key in ("cells", "asset_cells", "sector_cells"):
+            for cell in sec.get(key, []) or []:
+                sid = getattr(cell, "series_id", None)
+                if sid and sid not in seen and sid.startswith("FRED:"):
+                    seen[sid] = history_points(sid)
+    return seen
 
 
 def _bootstrap_universe() -> None:
@@ -53,11 +64,14 @@ def main() -> int:
         "twentytwov": _account_status("22v", CFG.twentytwov_user),
     }
 
+    histories = _collect_histories(g, cr, inf, liq, fl, se)
+
     ctx = {
         "run_date": date.today().isoformat(),
         "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gdp": g, "credit": cr, "inflation": inf, "liquidity": liq,
         "flows": fl, "sentiment": se, "screens": sc, "personal": personal,
+        "histories": histories,
         "ingest_log": fmt_log(
             ("gdp", g.get("log", {})),
             ("credit", cr.get("log", {})),

@@ -46,6 +46,7 @@ def collect() -> Dict:
             label=f"{label} (BofA OAS)",
             value=v / 100.0, unit="%",
             asof=s.index[-1].date().isoformat(), source=f"FRED:{sid}",
+            series_id=f"FRED:{sid}",
             extra={
                 "1d_chg_bp": None if d1 is None else d1 * 100,
                 "5d_chg_bp": None if d5 is None else d5 * 100,

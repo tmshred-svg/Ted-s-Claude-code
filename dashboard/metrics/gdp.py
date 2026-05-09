@@ -39,6 +39,7 @@ def collect() -> Dict[str, List[Cell]]:
             label="US Real GDP, QoQ SAAR (latest)",
             value=last / 100.0, unit="%",
             asof=qoq.index[-1].date().isoformat(), source="FRED:A191RL1Q225SBEA",
+            series_id=f"FRED:{US_REAL_GDP_QOQ_SAAR}",
         ))
         if prev is not None:
             cells.append(Cell(
@@ -75,6 +76,7 @@ def collect() -> Dict[str, List[Cell]]:
             label="Atlanta Fed GDPNow nowcast",
             value=nowcast["value"].iloc[-1] / 100.0, unit="%",
             asof=nowcast.index[-1].date().isoformat(), source="FRED:GDPNOW",
+            series_id=f"FRED:{US_GDP_NOWCAST_ATL}",
         ))
     else:
         cells.append(Cell(label="Atlanta Fed GDPNow", note="FRED not configured"))

@@ -11,6 +11,7 @@ class Cell:
     source: str = ""
     note: str = ""
     extra: dict = field(default_factory=dict)
+    series_id: Optional[str] = None
 
     @property
     def display(self) -> str:

@@ -95,6 +95,28 @@ def latest_series(series_id: str) -> pd.DataFrame:
     return df.set_index("obs_date").sort_index()
 
 
+def history_points(series_id: str, max_points: int = 1500) -> list:
+    """Return [iso_date, value] pairs for charting, latest revision per date.
+
+    Downsamples by uniform stride if the series is longer than max_points.
+    """
+    df = latest_series(series_id)
+    if df.empty:
+        return []
+    pairs = [
+        [d.date().isoformat(), float(v)]
+        for d, v in zip(df.index, df["value"])
+        if v is not None and not pd.isna(v)
+    ]
+    if len(pairs) > max_points:
+        step = len(pairs) // max_points + 1
+        sampled = pairs[::step]
+        if sampled[-1] != pairs[-1]:
+            sampled.append(pairs[-1])
+        pairs = sampled
+    return pairs
+
+
 def revision_count(series_id: str) -> pd.DataFrame:
     """Number of revisions per obs_date; ratio of revised observations to total."""
     init_db()
