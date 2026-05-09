@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Markets &amp; Macro — {{ run_date }}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;margin:24px;color:#111}
+  h1{font-size:20px;margin-bottom:0}
+  h2{font-size:15px;margin-top:28px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+  th,td{border:1px solid #e2e2e2;padding:5px 8px;text-align:left;vertical-align:top}
+  th{background:#f5f5f5;font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.na{color:#888;font-style:italic}
+  .meta{color:#666;font-size:11px}
+  .pos{color:#0a7d2c}
+  .neg{color:#b00020}
+  .pill{display:inline-block;padding:1px 6px;border-radius:8px;background:#eee;font-size:11px;margin-right:4px}
+  details{margin-top:6px}
+  summary{cursor:pointer;color:#555;font-size:12px}
+  pre{background:#fafafa;border:1px solid #eee;padding:8px;font-size:11px;overflow:auto}
+</style>
+</head>
+<body>
+<h1>Daily Markets &amp; Macro Report</h1>
+<div class="meta">Generated {{ run_at }}. All values carry source &amp; as-of date. Missing values are shown verbatim, never imputed.</div>
+
+{% macro cellrow(c) -%}
+<tr>
+  <td>{{ c.label }}</td>
+  <td class="num {% if c.value is none %}na{% endif %}">{{ c.display }}</td>
+  <td class="meta">{{ c.asof or '' }}</td>
+  <td class="meta">{{ c.source or '' }}</td>
+  <td class="meta">
+    {% if c.extra %}
+      {% for k,v in c.extra.items() %}
+        <span class="pill">{{ k }}: {% if v is none %}n/a{% elif v is number %}{{ '%+.4g' % v }}{% else %}{{ v }}{% endif %}</span>
+      {% endfor %}
+    {% endif %}
+    {% if c.note %}<div>{{ c.note }}</div>{% endif %}
+  </td>
+</tr>
+{%- endmacro %}
+
+{% macro celltable(cells) -%}
+<table>
+  <thead><tr><th>Metric</th><th>Value</th><th>As of</th><th>Source</th><th>Detail / rate-of-change</th></tr></thead>
+  <tbody>{% for c in cells %}{{ cellrow(c) }}{% endfor %}</tbody>
+</table>
+{%- endmacro %}
+
+<h2>1. GDP — Global &amp; US, with revision tracking</h2>
+{{ celltable(gdp.cells) }}
+
+<h2>2. Credit spreads &amp; rate volatility</h2>
+{{ celltable(credit.cells) }}
+
+<h2>3. Inflation &amp; inflation expectations</h2>
+{{ celltable(inflation.cells) }}
+
+<h2>4. Global liquidity</h2>
+{{ celltable(liquidity.cells) }}
+
+<h2>5. Flow of funds — asset classes (price-action proxies)</h2>
+{{ celltable(flows.asset_cells) }}
+
+<h2>5b. Flow of funds — sectors</h2>
+{{ celltable(flows.sector_cells) }}
+
+<h2>6. Sentiment &amp; positioning</h2>
+{{ celltable(sentiment.cells) }}
+
+<h2>7. Screens</h2>
+{% if screens.note %}
+<div class="meta">{{ screens.note }}</div>
+{% endif %}
+
+<h3>Sector strength snapshot</h3>
+{% if screens.sector_strength %}
+<table>
+  <thead><tr><th>Sector ETF</th><th>RS vs benchmark, 63d</th><th>RSI(14)</th><th>HH+HL on RSI (20d)</th><th>Bucket</th></tr></thead>
+  <tbody>
+  {% for s in screens.sector_strength %}
+    <tr>
+      <td>{{ s.etf }}</td>
+      <td class="num">{{ '%+.2f%%' % (s.rs_63d * 100) if s.rs_63d is not none else 'n/a' }}</td>
+      <td class="num">{{ '%.1f' % s.rsi14_last if s.rsi14_last is not none else 'n/a' }}</td>
+      <td>{{ 'yes' if s.rsi_hh_hl_20d else 'no' }}</td>
+      <td>
+        {% if s.etf in screens.strong_etfs %}strong
+        {% elif s.etf in screens.weak_etfs %}weak
+        {% else %}neutral{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<div class="meta">Strong tercile: {{ screens.strong_etfs|join(', ') }}. Weak tercile: {{ screens.weak_etfs|join(', ') }}. Weak sectors with RSI HH+HL: {{ screens.weak_with_hh_hl|join(', ') if screens.weak_with_hh_hl else 'none' }}. Universe size: {{ screens.universe_size }}. RS p75 cutoff: {{ '%+.2f%%' % (screens.rs_threshold_p75 * 100) if screens.rs_threshold_p75 is not none else 'n/a' }}.</div>
+{% endif %}
+
+<h3>Strong stocks in strong sectors with improving earnings revisions</h3>
+{% if screens.strong_in_strong %}
+<table>
+  <thead><tr><th>Ticker</th><th>Sector</th><th>ETF</th><th>RS 63d</th><th>RS 21d</th><th>Revisions last</th><th>Revisions Δ21d</th></tr></thead>
+  <tbody>
+  {% for r in screens.strong_in_strong %}
+    <tr>
+      <td>{{ r.ticker }}</td>
+      <td>{{ r.sector }}</td>
+      <td>{{ r.sector_etf }}</td>
+      <td class="num">{{ '%+.2f%%' % (r.rs_63d * 100) if r.rs_63d is not none else 'n/a' }}</td>
+      <td class="num">{{ '%+.2f%%' % (r.rs_21d * 100) if r.rs_21d is not none else 'n/a' }}</td>
+      <td class="num">{{ '%.3f' % r.revisions_last if r.revisions_last is not none else 'n/a' }}</td>
+      <td class="num">{{ '%+.3f' % r.revisions_chg_21d if r.revisions_chg_21d is not none else 'n/a' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="meta">No matches. (Requires earnings-revision CSVs at data/manual/revisions_&lt;TICKER&gt;.csv. Without them this screen returns empty by rule, not by guess.)</div>
+{% endif %}
+
+<h3>Strong stocks in weak sectors where weak-sector RSI shows HH+HL</h3>
+{% if screens.strong_in_weak %}
+<table>
+  <thead><tr><th>Ticker</th><th>Sector</th><th>ETF</th><th>RS 63d</th><th>RS 21d</th></tr></thead>
+  <tbody>
+  {% for r in screens.strong_in_weak %}
+    <tr>
+      <td>{{ r.ticker }}</td>
+      <td>{{ r.sector }}</td>
+      <td>{{ r.sector_etf }}</td>
+      <td class="num">{{ '%+.2f%%' % (r.rs_63d * 100) if r.rs_63d is not none else 'n/a' }}</td>
+      <td class="num">{{ '%+.2f%%' % (r.rs_21d * 100) if r.rs_21d is not none else 'n/a' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="meta">No matches today.</div>
+{% endif %}
+
+<h2>8. Personal accounts</h2>
+<table>
+  <thead><tr><th>Account</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>VectorVest</td><td class="meta">{{ personal.vectorvest }}</td></tr>
+    <tr><td>Master Trader</td><td class="meta">{{ personal.mastertrader }}</td></tr>
+    <tr><td>22V Research</td><td class="meta">{{ personal.twentytwov }}</td></tr>
+  </tbody>
+</table>
+
+<details>
+<summary>Ingestion log</summary>
+<pre>{{ ingest_log }}</pre>
+</details>
+
+</body>
+</html>

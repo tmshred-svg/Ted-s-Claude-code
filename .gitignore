@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+data/
+reports/*.html
+!reports/.gitkeep
+*.sqlite
+*.sqlite-journal
+.DS_Store
