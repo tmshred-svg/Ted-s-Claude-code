@@ -16,29 +16,22 @@ def last_debug() -> dict:
     return dict(_LAST_DEBUG)
 
 
-_VALUE_FIELDS = (
-    "close_today_bal",
-    "open_today_bal",
-    "today_amt",
-    "amount",
-    "amt",
-)
-
-
 def fetch_tga(days: int = 1500) -> List[Tuple[str, float]]:
-    """Operating Cash Balance — Treasury General Account.
+    """Operating Cash Balance — TGA closing balance.
 
-    Schema has changed several times; we request every field, match the row
-    by account_type substring, then probe a list of known value fields. The
-    distinct account_type values and the JSON keys of one matching row are
-    surfaced in last_debug() for diagnostics.
+    Returns sorted (date, value_in_millions). The DTS API has used several
+    different account_type labels and field names over the years; we filter
+    by substring match and probe known value-field names. Diagnostic info
+    is kept in last_debug() but is not required for downstream metric
+    rendering — FRED:WTREGEN is the production fallback.
     """
     url = f"{BASE}/v1/accounting/dts/operating_cash_balance"
     params = {
+        "fields": "record_date,open_today_bal,close_today_bal,today_amt,account_type",
         "sort": "-record_date",
         "page[size]": str(days),
     }
-    r = requests.get(url, params=params, timeout=60,
+    r = requests.get(url, params=params, timeout=45,
                      headers={"User-Agent": "metrics-dashboard"})
     r.raise_for_status()
     rows = r.json().get("data", [])
@@ -48,28 +41,27 @@ def fetch_tga(days: int = 1500) -> List[Tuple[str, float]]:
     _LAST_DEBUG["row_count"] = len(rows)
 
     by_date: dict = {}
-    sample_keys = []
     for row in rows:
         acct = (row.get("account_type") or "").lower()
         if "treasury general account" not in acct:
             continue
         if "opening" in acct or "deposit" in acct or "withdrawal" in acct:
             continue
-        if not sample_keys:
-            sample_keys = sorted(row.keys())
         date_iso = row.get("record_date")
         if not date_iso:
             continue
-        for v_field in _VALUE_FIELDS:
+        for v_field in ("close_today_bal", "today_amt", "open_today_bal"):
             v = row.get(v_field)
-            if v in (None, "", "null", "0", 0):
+            if v in (None, "", "null"):
                 continue
             try:
-                by_date[date_iso] = float(v)
-                break
+                fv = float(v)
             except (ValueError, TypeError):
                 continue
-    _LAST_DEBUG["sample_keys"] = sample_keys
+            if fv == 0:
+                continue
+            by_date[date_iso] = fv
+            break
     return sorted(by_date.items())
 
 
