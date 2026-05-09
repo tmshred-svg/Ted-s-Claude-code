@@ -1,12 +1,13 @@
 from typing import Dict, List
 
-from ..sources import cboe, csv_drop, fred
+from ..sources import cboe, csv_drop, fred, yfinance_src
 from ..storage import latest_series
 from ..roc import diff, trend_slope
 from ._common import Cell
 
 
 VIX_FRED = "VIXCLS"
+PC_YAHOO = "^CPC"
 
 
 def _ingest_safe(fn, *a, **k):
@@ -19,25 +20,35 @@ def _ingest_safe(fn, *a, **k):
 def collect() -> Dict:
     log = {}
     log["CBOE_PC"] = _ingest_safe(cboe.ingest)
+    log["YF_CPC"] = _ingest_safe(yfinance_src.ingest_close, PC_YAHOO, "5y")
     log["AAII"] = _ingest_safe(csv_drop.ingest, "aaii_sentiment")
     log["II"] = _ingest_safe(csv_drop.ingest, "investors_intelligence")
     log[VIX_FRED] = _ingest_safe(fred.ingest, VIX_FRED)
 
     cells: List[Cell] = []
 
-    pc = latest_series("CBOE:EQUITY_PC")
-    if not pc.empty:
+    pc_cboe = latest_series("CBOE:EQUITY_PC")
+    pc_yf = latest_series(f"YF:{PC_YAHOO}:CLOSE")
+    if not pc_cboe.empty:
+        pc, src = pc_cboe, "CBOE"
+        label = "CBOE equity put/call ratio"
+    elif not pc_yf.empty:
+        pc, src = pc_yf, "Yahoo:^CPC"
+        label = "CBOE total put/call ratio (Yahoo ^CPC)"
+    else:
+        pc, src, label = None, None, "CBOE put/call"
+    if pc is not None and not pc.empty:
         v = pc["value"].iloc[-1]
         d5 = diff(pc["value"], 5)
         slope = trend_slope(pc["value"], 21)
         cells.append(Cell(
-            label="CBOE equity put/call ratio",
+            label=label,
             value=v, unit="ratio",
-            asof=pc.index[-1].date().isoformat(), source="CBOE",
+            asof=pc.index[-1].date().isoformat(), source=src,
             extra={"5d_chg": d5, "21d_slope": slope},
         ))
     else:
-        cells.append(Cell(label="CBOE equity put/call", note="CBOE fetch failed"))
+        cells.append(Cell(label="CBOE put/call", note="CBOE blocked and Yahoo ^CPC unavailable"))
 
     vix = latest_series(f"FRED:{VIX_FRED}")
     if not vix.empty:

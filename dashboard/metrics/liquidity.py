@@ -10,6 +10,7 @@ FED_BS = "WALCL"          # millions
 RRP = "RRPONTSYD"         # billions
 M2 = "M2SL"
 ECB_BS_FRED = "ECBASSETSW"  # ECB total assets, millions EUR
+TGA_FRED = "WTREGEN"        # U.S. Treasury Operating Cash Balance, weekly, $bn
 BOJ_BS_BBG = "BJACTOTL Index"
 PBOC_BS_BBG = "PBCRTOTA Index"
 
@@ -27,7 +28,9 @@ def collect() -> Dict:
     log[RRP] = _ingest_safe(fred.ingest, RRP)
     log[M2] = _ingest_safe(fred.ingest, M2)
     log[ECB_BS_FRED] = _ingest_safe(fred.ingest, ECB_BS_FRED)
-    log["TGA"] = _ingest_safe(treasury.ingest_tga)
+    log[TGA_FRED] = _ingest_safe(fred.ingest, TGA_FRED)
+    log["TGA_treasury_api"] = _ingest_safe(treasury.ingest_tga)
+    log["TGA_treasury_seen_accounts"] = str(treasury.last_debug())
     log["BOJ_BBG"] = _ingest_safe(bloomberg.ingest, BOJ_BS_BBG)
     log["PBOC_BBG"] = _ingest_safe(bloomberg.ingest, PBOC_BS_BBG)
     log["BOJ_CSV"] = _ingest_safe(csv_drop.ingest, "boj_balance_sheet")
@@ -38,6 +41,8 @@ def collect() -> Dict:
     fed = latest_series(f"FRED:{FED_BS}")
     rrp = latest_series(f"FRED:{RRP}")
     tga = latest_series("TREAS:TGA_BAL")
+    if tga.empty:
+        tga = latest_series(f"FRED:{TGA_FRED}")
 
     if not fed.empty:
         v = fed["value"].iloc[-1] * 1e6
@@ -66,16 +71,22 @@ def collect() -> Dict:
         cells.append(Cell(label="Fed ON RRP", note="FRED not configured"))
 
     if not tga.empty:
-        v = tga["value"].iloc[-1] * 1e6
+        tga_treasury = latest_series("TREAS:TGA_BAL")
+        if not tga_treasury.empty:
+            v = tga["value"].iloc[-1] * 1e6
+            tga_src = "USTreasury (DTS)"
+        else:
+            v = tga["value"].iloc[-1] * 1e9
+            tga_src = "FRED:WTREGEN"
         d5 = diff(tga["value"], 5)
         cells.append(Cell(
             label="Treasury General Account (TGA)",
             value=v, unit="$bn",
-            asof=tga.index[-1].date().isoformat(), source="USTreasury",
-            extra={"5d_chg_$mm": None if d5 is None else d5},
+            asof=tga.index[-1].date().isoformat(), source=tga_src,
+            extra={"5d_chg_raw": None if d5 is None else d5},
         ))
     else:
-        cells.append(Cell(label="TGA", note="Treasury fetch failed"))
+        cells.append(Cell(label="TGA", note="Treasury fetch failed and FRED WTREGEN unavailable"))
 
     if not fed.empty and not rrp.empty and not tga.empty:
         idx = fed.index.intersection(tga.index).intersection(rrp.index)

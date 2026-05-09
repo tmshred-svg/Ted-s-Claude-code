@@ -9,33 +9,49 @@ from ..storage import upsert_observations
 BASE = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service"
 
 
+_LAST_DEBUG = {"distinct_account_types": [], "row_count": 0}
+
+
+def last_debug() -> dict:
+    return dict(_LAST_DEBUG)
+
+
 def fetch_tga(days: int = 1500) -> List[Tuple[str, float]]:
     """Operating Cash Balance — Treasury General Account.
 
-    The Treasury API has used several different account_type labels over the
-    years ('Federal Reserve Account', 'Treasury General Account (TGA)',
-    'Treasury General Account (TGA) Opening Balance',
-    'Treasury General Account (TGA) Closing Balance'). We pull all rows and
-    filter by substring match in Python so the adapter survives schema
-    changes.
+    The Treasury API has used several account_type labels over the years.
+    We pull all rows and filter by substring match in Python so the adapter
+    survives schema changes. We also record the distinct account_type values
+    we saw in this fetch (accessible via last_debug()) for diagnostics.
     """
     url = f"{BASE}/v1/accounting/dts/operating_cash_balance"
     params = {
-        "fields": "record_date,open_today_bal,close_today_bal,account_type",
+        "fields": "record_date,open_today_bal,close_today_bal,account_type,account_type_desc",
         "sort": "-record_date",
         "page[size]": str(days),
     }
     r = requests.get(url, params=params, timeout=60,
                      headers={"User-Agent": "metrics-dashboard"})
     r.raise_for_status()
+    rows = r.json().get("data", [])
+    seen_accts = sorted({(row.get("account_type") or "").strip() for row in rows if row.get("account_type")})
+    _LAST_DEBUG["distinct_account_types"] = seen_accts[:30]
+    _LAST_DEBUG["row_count"] = len(rows)
+
     by_date: dict = {}
-    for row in r.json().get("data", []):
+    for row in rows:
         acct = (row.get("account_type") or "").lower()
-        if "treasury general account" not in acct and "federal reserve account" not in acct:
+        if not (
+            "treasury general account" in acct
+            or "federal reserve account" in acct
+            or acct.strip() == "tga"
+        ):
             continue
         if "opening" in acct:
             continue
         date_iso = row.get("record_date")
+        if not date_iso:
+            continue
         for v_field in ("close_today_bal", "open_today_bal"):
             v = row.get(v_field)
             if v in (None, "", "null"):

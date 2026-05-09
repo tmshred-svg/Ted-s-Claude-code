@@ -85,7 +85,11 @@ def build() -> Dict[str, List[Dict]]:
         p["liquidity"].append({"label": "Fed ON RRP ($bn)", "data": _pairs(rrp)})
     tga = latest_series("TREAS:TGA_BAL")
     if not tga.empty:
-        p["liquidity"].append({"label": "TGA ($bn)", "data": _scaled_pairs(tga, 1 / 1000.0)})
+        p["liquidity"].append({"label": "TGA ($bn, DTS)", "data": _scaled_pairs(tga, 1 / 1000.0)})
+    else:
+        tga_fred = latest_series("FRED:WTREGEN")
+        if not tga_fred.empty:
+            p["liquidity"].append({"label": "TGA ($bn, FRED WTREGEN)", "data": _pairs(tga_fred)})
     ecb = latest_series("FRED:ECBASSETSW")
     if not ecb.empty:
         p["liquidity"].append({"label": "ECB total assets (€bn)", "data": _scaled_pairs(ecb, 1 / 1000.0)})
@@ -96,7 +100,10 @@ def build() -> Dict[str, List[Dict]]:
     p["sentiment"] = []
     pc = latest_series("CBOE:EQUITY_PC")
     if not pc.empty:
-        p["sentiment"].append({"label": "CBOE put/call ratio", "data": _pairs(pc)})
+        p["sentiment"].append({"label": "CBOE equity put/call", "data": _pairs(pc)})
+    pc_yf = latest_series("YF:^CPC:CLOSE")
+    if not pc_yf.empty:
+        p["sentiment"].append({"label": "CBOE total put/call (^CPC)", "data": _pairs(pc_yf)})
     vix = latest_series("FRED:VIXCLS")
     if not vix.empty:
         p["sentiment"].append({"label": "VIX", "data": _pairs(vix)})
