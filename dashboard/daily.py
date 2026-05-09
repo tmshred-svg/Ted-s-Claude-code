@@ -7,6 +7,7 @@ from .metrics import gdp, credit, inflation, liquidity, flows, sentiment, screen
 from .sources import vectorvest, mastertrader, twentytwo_v
 from .storage import init_db, log_run
 from .report import render, write, fmt_log
+from . import charts
 
 
 def _bootstrap_universe() -> None:
@@ -53,11 +54,15 @@ def main() -> int:
         "twentytwov": _account_status("22v", CFG.twentytwov_user),
     }
 
+    chart_payload = charts.build()
+
     ctx = {
         "run_date": date.today().isoformat(),
         "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gdp": g, "credit": cr, "inflation": inf, "liquidity": liq,
         "flows": fl, "sentiment": se, "screens": sc, "personal": personal,
+        "charts_json": charts.to_json(chart_payload),
+        "has_charts": {k: bool(v) for k, v in chart_payload.items()},
         "ingest_log": fmt_log(
             ("gdp", g.get("log", {})),
             ("credit", cr.get("log", {})),
