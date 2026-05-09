@@ -15,14 +15,13 @@ class NotConfigured(RuntimeError):
 
 
 def fetch(series_id: str, start_year: int = 2000) -> List[Tuple[str, float]]:
-    if not CFG.bls_api_key:
-        raise NotConfigured("BLS_API_KEY not set")
     payload = {
         "seriesid": [series_id],
         "startyear": str(start_year),
         "endyear": str(datetime.utcnow().year),
-        "registrationkey": CFG.bls_api_key,
     }
+    if CFG.bls_api_key:
+        payload["registrationkey"] = CFG.bls_api_key
     r = requests.post(BASE, json=payload, timeout=30)
     r.raise_for_status()
     data = r.json()
@@ -48,6 +47,6 @@ def ingest(series_id: str, start_year: int = 2000) -> int:
     return upsert_observations(
         series_id=f"BLS:{series_id}",
         rows=rows,
-        source="BLS",
+        source="BLS" if CFG.bls_api_key else "BLS-anon",
         fetched_at=datetime.now(timezone.utc).isoformat(),
     )

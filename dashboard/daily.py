@@ -1,3 +1,4 @@
+import shutil
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -6,6 +7,17 @@ from .metrics import gdp, credit, inflation, liquidity, flows, sentiment, screen
 from .sources import vectorvest, mastertrader, twentytwo_v
 from .storage import init_db, log_run
 from .report import render, write, fmt_log
+
+
+def _bootstrap_universe() -> None:
+    target = Path(CFG.universe_file)
+    if target.exists():
+        return
+    src = Path(__file__).resolve().parent.parent / "examples" / "universe.default.csv"
+    if not src.exists():
+        return
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src, target)
 
 
 def _account_status(name: str, user: str) -> str:
@@ -19,6 +31,7 @@ def _account_status(name: str, user: str) -> str:
 
 def main() -> int:
     init_db()
+    _bootstrap_universe()
     g = gdp.collect()
     cr = credit.collect()
     inf = inflation.collect()

@@ -3,9 +3,10 @@
 Inputs:
   - universe CSV at SCREEN_UNIVERSE_FILE: columns ticker,sector,sector_etf
   - daily closes for each ticker, sector ETF, and benchmark (Yahoo)
-  - optional earnings revisions per ticker:
-      data/manual/revisions_<TICKER>.csv with date,value
-      where value = (# upward revisions - # downward) over trailing 4w / total
+  - earnings revisions per ticker, in priority order:
+      1. yfinance Ticker.eps_revisions snapshotted daily into REVS:<TICKER>
+      2. data/manual/revisions_<TICKER>.csv with date,value
+      Score is (up30 - down30) / (up30 + down30); range [-1, +1].
 
 Rules (deterministic):
   - 63d relative strength of each ticker vs benchmark
@@ -23,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 from ..config import CFG
-from ..sources import yfinance_src, csv_drop
+from ..sources import yfinance_src, csv_drop, yfinance_revisions
 from ..storage import latest_series
 from ..roc import pct_change, rsi, higher_highs_higher_lows, relative_strength
 from ._common import Cell
@@ -70,7 +71,12 @@ def collect() -> Dict:
         if t:
             log[f"YF:{t}"] = _ingest_safe(yfinance_src.ingest_close, t, "1y")
     for t in tickers:
-        csv_drop.ingest(f"revisions_{t}")
+        n_csv = csv_drop.ingest(f"revisions_{t}")
+        try:
+            n_yf = yfinance_revisions.ingest(t)
+        except Exception:
+            n_yf = 0
+        log[f"REVS:{t}"] = f"csv={n_csv} yfinance={n_yf}"
 
     bench = latest_series(f"YF:{CFG.benchmark}:CLOSE")
     if bench.empty:
@@ -116,7 +122,9 @@ def collect() -> Dict:
             continue
         rs63 = relative_strength(s["value"], bench_close, 63)
         rs21 = relative_strength(s["value"], bench_close, 21)
-        revs = latest_series(f"CSV:revisions_{t}")
+        revs = latest_series(f"REVS:{t}")
+        if revs.empty:
+            revs = latest_series(f"CSV:revisions_{t}")
         rev_last = float(revs["value"].iloc[-1]) if not revs.empty else None
         rev_chg21 = None
         if not revs.empty and len(revs) >= 2:
