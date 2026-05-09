@@ -1,0 +1,65 @@
+name: Daily Dashboard
+
+on:
+  schedule:
+    - cron: '30 22 * * 1-5'   # 22:30 UTC weekdays (~18:30 ET, after US close)
+  push:
+    branches:
+      - claude/economic-metrics-dashboard-ze1x0
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore SQLite history
+        uses: actions/cache@v4
+        with:
+          path: data/dashboard.sqlite
+          key: dashboard-db-${{ github.run_id }}
+          restore-keys: |
+            dashboard-db-
+
+      - name: Generate dashboard
+        run: python -m dashboard.daily
+
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          cp -r reports/. _site/
+          if [ -f _site/latest.html ]; then
+            cp _site/latest.html _site/index.html
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
