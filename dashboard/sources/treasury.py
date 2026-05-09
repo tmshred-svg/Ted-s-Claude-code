@@ -26,7 +26,7 @@ def fetch_tga(days: int = 1500) -> List[Tuple[str, float]]:
     """
     url = f"{BASE}/v1/accounting/dts/operating_cash_balance"
     params = {
-        "fields": "record_date,open_today_bal,close_today_bal,account_type,account_type_desc",
+        "fields": "record_date,open_today_bal,close_today_bal,account_type",
         "sort": "-record_date",
         "page[size]": str(days),
     }
