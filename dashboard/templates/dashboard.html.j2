@@ -19,10 +19,9 @@
   details{margin-top:6px}
   summary{cursor:pointer;color:#555;font-size:12px}
   pre{background:#fafafa;border:1px solid #eee;padding:8px;font-size:11px;overflow:auto}
-  .chart-wrap{position:relative;height:320px;margin:8px 0 6px;background:#fff;border:1px solid #eee;border-radius:6px;padding:6px}
+  .chart-wrap{position:relative;margin:8px 0 6px;background:#fff;border:1px solid #eee;border-radius:6px;padding:6px}
+  .chart-wrap svg{width:100%;height:auto;display:block}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
 <h1>Daily Markets &amp; Macro Report</h1>
@@ -52,34 +51,38 @@
 </table>
 {%- endmacro %}
 
+{% macro chartpanel(key) -%}
+{% if chart_svgs and chart_svgs[key] %}<div class="chart-wrap">{{ chart_svgs[key] | safe }}</div>{% endif %}
+{%- endmacro %}
+
 <h2>1. GDP — Global &amp; US, with revision tracking</h2>
-{% if has_charts.gdp %}<div class="chart-wrap"><canvas id="chart_gdp"></canvas></div>{% endif %}
+{{ chartpanel('gdp') }}
 {{ celltable(gdp.cells) }}
 
 <h2>2. Credit spreads &amp; rate volatility</h2>
-{% if has_charts.credit %}<div class="chart-wrap"><canvas id="chart_credit"></canvas></div>{% endif %}
-{% if has_charts.move %}<div class="chart-wrap"><canvas id="chart_move"></canvas></div>{% endif %}
+{{ chartpanel('credit') }}
+{{ chartpanel('move') }}
 {{ celltable(credit.cells) }}
 
 <h2>3. Inflation &amp; inflation expectations</h2>
-{% if has_charts.inflation_yoy %}<div class="chart-wrap"><canvas id="chart_inflation_yoy"></canvas></div>{% endif %}
-{% if has_charts.expectations %}<div class="chart-wrap"><canvas id="chart_expectations"></canvas></div>{% endif %}
+{{ chartpanel('inflation_yoy') }}
+{{ chartpanel('expectations') }}
 {{ celltable(inflation.cells) }}
 
 <h2>4. Global liquidity</h2>
-{% if has_charts.liquidity %}<div class="chart-wrap"><canvas id="chart_liquidity"></canvas></div>{% endif %}
+{{ chartpanel('liquidity') }}
 {{ celltable(liquidity.cells) }}
 
 <h2>5. Flow of funds — asset classes (price-action proxies)</h2>
-{% if has_charts.asset_classes %}<div class="chart-wrap"><canvas id="chart_asset_classes"></canvas></div>{% endif %}
+{{ chartpanel('asset_classes') }}
 {{ celltable(flows.asset_cells) }}
 
 <h2>5b. Flow of funds — sectors</h2>
-{% if has_charts.sectors %}<div class="chart-wrap"><canvas id="chart_sectors"></canvas></div>{% endif %}
+{{ chartpanel('sectors') }}
 {{ celltable(flows.sector_cells) }}
 
 <h2>6. Sentiment &amp; positioning</h2>
-{% if has_charts.sentiment %}<div class="chart-wrap"><canvas id="chart_sentiment"></canvas></div>{% endif %}
+{{ chartpanel('sentiment') }}
 {{ celltable(sentiment.cells) }}
 
 <h2>7. Screens</h2>
@@ -166,58 +169,6 @@
 <summary>Ingestion log</summary>
 <pre>{{ ingest_log }}</pre>
 </details>
-
-<script>
-const __charts = {{ charts_json | safe }};
-const __palette = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#17becf','#bcbd22','#0a7d2c','#b00020'];
-
-function __makeChart(canvasId, key, title, opts) {
-  const series = __charts[key];
-  if (!series || !series.length) return;
-  const el = document.getElementById(canvasId);
-  if (!el) return;
-  new Chart(el, {
-    type: 'line',
-    data: {
-      datasets: series.map((s, i) => ({
-        label: s.label,
-        data: s.data.map(p => ({x: p[0], y: p[1]})),
-        borderColor: __palette[i % __palette.length],
-        backgroundColor: 'transparent',
-        pointRadius: 0,
-        borderWidth: 1.4,
-        spanGaps: true,
-        tension: 0.0,
-      })),
-    },
-    options: Object.assign({
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      interaction: {mode: 'index', intersect: false},
-      plugins: {
-        title: {display: true, text: title, font: {size: 13}},
-        legend: {position: 'bottom', labels: {boxWidth: 10, font: {size: 11}}},
-        tooltip: {enabled: true},
-      },
-      scales: {
-        x: {type: 'time', time: {unit: 'year'}, ticks: {maxTicksLimit: 12, font: {size: 10}}},
-        y: {ticks: {font: {size: 10}}},
-      },
-    }, opts || {}),
-  });
-}
-
-__makeChart('chart_gdp', 'gdp', 'GDP nowcasts & QoQ SAAR (%)');
-__makeChart('chart_credit', 'credit', 'Corporate OAS (%)');
-__makeChart('chart_move', 'move', 'Rate volatility — MOVE');
-__makeChart('chart_inflation_yoy', 'inflation_yoy', 'Inflation YoY (%)');
-__makeChart('chart_expectations', 'expectations', 'Inflation expectations (%)');
-__makeChart('chart_liquidity', 'liquidity', 'Liquidity ($bn)');
-__makeChart('chart_sentiment', 'sentiment', 'Sentiment');
-__makeChart('chart_sectors', 'sectors', 'Sector ETFs (rebased=100)');
-__makeChart('chart_asset_classes', 'asset_classes', 'Asset-class ETFs (rebased=100)');
-</script>
 
 </body>
 </html>

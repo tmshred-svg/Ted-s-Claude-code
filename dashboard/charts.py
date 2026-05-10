@@ -4,6 +4,7 @@ from typing import Dict, List
 
 import pandas as pd
 
+from .sparkline import panel_svg
 from .storage import latest_series
 
 
@@ -137,3 +138,26 @@ def build() -> Dict[str, List[Dict]]:
 
 def to_json(payload: Dict) -> str:
     return json.dumps(payload, separators=(",", ":"))
+
+
+PANEL_TITLES = {
+    "gdp": "GDP nowcasts & QoQ SAAR (%)",
+    "credit": "Corporate OAS (%)",
+    "move": "Rate volatility — MOVE",
+    "inflation_yoy": "Inflation YoY (%)",
+    "expectations": "Inflation expectations (%)",
+    "liquidity": "Liquidity ($bn / €bn)",
+    "sentiment": "Sentiment",
+    "sectors": "Sector ETFs (rebased=100)",
+    "asset_classes": "Asset-class ETFs (rebased=100)",
+}
+
+
+def to_svgs(payload: Dict) -> Dict[str, str]:
+    """Render each chart panel to an inline SVG. Keys with no data are omitted."""
+    out: Dict[str, str] = {}
+    for key, series in payload.items():
+        if not series:
+            continue
+        out[key] = panel_svg(series, title=PANEL_TITLES.get(key, key))
+    return out
