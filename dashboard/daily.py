@@ -54,7 +54,9 @@ def main() -> int:
         "twentytwov": _account_status("22v", CFG.twentytwov_user),
     }
 
-    chart_svgs = charts.to_svgs(charts.build())
+    chart_payload = charts.build()
+    chart_svgs = charts.to_svgs(chart_payload)
+    chart_svgs_indiv = charts.to_individual_svgs(chart_payload)
 
     ctx = {
         "run_date": date.today().isoformat(),
@@ -62,6 +64,7 @@ def main() -> int:
         "gdp": g, "credit": cr, "inflation": inf, "liquidity": liq,
         "flows": fl, "sentiment": se, "screens": sc, "personal": personal,
         "chart_svgs": chart_svgs,
+        "chart_svgs_indiv": chart_svgs_indiv,
         "ingest_log": fmt_log(
             ("gdp", g.get("log", {})),
             ("credit", cr.get("log", {})),

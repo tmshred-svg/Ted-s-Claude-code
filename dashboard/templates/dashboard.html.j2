@@ -21,6 +21,9 @@
   pre{background:#fafafa;border:1px solid #eee;padding:8px;font-size:11px;overflow:auto}
   .chart-wrap{position:relative;margin:8px 0 6px;background:#fff;border:1px solid #eee;border-radius:6px;padding:6px}
   .chart-wrap svg{width:100%;height:auto;display:block}
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px;margin:6px 0 14px}
+  .chart-mini{background:#fff;border:1px solid #eee;border-radius:4px;padding:3px}
+  .chart-mini svg{width:100%;height:auto;display:block}
 </style>
 </head>
 <body>
@@ -53,6 +56,9 @@
 
 {% macro chartpanel(key) -%}
 {% if chart_svgs and chart_svgs[key] %}<div class="chart-wrap">{{ chart_svgs[key] | safe }}</div>{% endif %}
+{% if chart_svgs_indiv and chart_svgs_indiv[key] %}<div class="chart-grid">
+{% for item in chart_svgs_indiv[key] %}<div class="chart-mini">{{ item.svg | safe }}</div>{% endfor %}
+</div>{% endif %}
 {%- endmacro %}
 
 <h2>1. GDP — Global &amp; US, with revision tracking</h2>

@@ -161,3 +161,20 @@ def to_svgs(payload: Dict) -> Dict[str, str]:
             continue
         out[key] = panel_svg(series, title=PANEL_TITLES.get(key, key))
     return out
+
+
+def to_individual_svgs(payload: Dict) -> Dict[str, List[Dict[str, str]]]:
+    """Render every series as its own inline SVG so each data point has a chart.
+
+    Returns {section_key: [{label, svg}, ...]}. Sections with no data are omitted.
+    """
+    out: Dict[str, List[Dict[str, str]]] = {}
+    for key, series in payload.items():
+        if not series:
+            continue
+        out[key] = [
+            {"label": s.get("label", ""),
+             "svg": panel_svg([s], title=s.get("label", ""), width=560, height=200)}
+            for s in series
+        ]
+    return out
