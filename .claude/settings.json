@@ -1,0 +1,12 @@
+{
+  "sandbox": {
+    "network": {
+      "allowedDomains": [
+        "fred.stlouisfed.org",
+        "query1.finance.yahoo.com",
+        "api.fiscaldata.treasury.gov",
+        "cdn.cboe.com"
+      ]
+    }
+  }
+}
